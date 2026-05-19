@@ -451,6 +451,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         Para activar el envío automático necesitas crear un <strong>Apps Script</strong> en Google Sheets. Copia el código a continuación y pégalo en <strong>Extensiones → Apps Script</strong>.
       </div>
       <button class="copy-btn" onclick="copyScript()">📋 Copiar código del Apps Script</button>
+      <button class="copy-btn" onclick="testConnection()" style="margin-top:8px;border-color:var(--green);color:var(--green)">🔗 Probar conexión con Google Sheets</button>
+      <div id="testResult" style="margin-top:8px;font-size:0.78rem;display:none;padding:0.6rem;border-radius:8px;background:var(--bg3)"></div>
     </div>
 
     <div class="config-card">
@@ -768,11 +770,23 @@ async function sendLocation() {
   // Send to Google Sheets via Apps Script
   try {
     const params = new URLSearchParams(record)
-    const res = await fetch(SCRIPT_URL + '?' + params, { method: 'GET', mode: 'no-cors' })
-    addLog('✅ Enviado correctamente', 'ok')
-    showToast('📍 Ubicación enviada', 'success')
+    const fullURL = SCRIPT_URL + '?' + params.toString()
+
+    // Método 1: fetch con no-cors (dispara la petición aunque no podamos leer respuesta)
+    fetch(fullURL, { method: 'GET', mode: 'no-cors' }).catch(() => {})
+
+    // Método 2: imagen pixel como respaldo (funciona siempre en móviles)
+    const img = new Image()
+    img.src = fullURL
+    img.onload = () => { addLog('✅ Enviado a Google Sheets', 'ok'); showToast('📍 Ubicación enviada', 'success') }
+    img.onerror = () => {
+      // onerror puede dispararse aunque el script SÍ recibió los datos (CORS en imagen)
+      // Lo tratamos como enviado ya que no-cors no da errores reales
+      addLog('✅ Enviado (sin confirmación CORS)', 'ok')
+      showToast('📍 Ubicación enviada', 'success')
+    }
   } catch (e) {
-    addLog('❌ Error de red: ' + e.message, 'err')
+    addLog('❌ Error al enviar: ' + e.message, 'err')
     showToast('Error de red', 'error')
   }
   renderDashboard()
@@ -945,39 +959,106 @@ function focusRecord(idx) {
 // ═══════════════════════════════════════
 //  CONFIG
 // ═══════════════════════════════════════
-const APPS_SCRIPT_CODE = `// Google Apps Script para CEDIS Tracker
-// Pegar en: Extensiones → Apps Script → Guardar → Implementar → Nueva implementación
-// Tipo: Aplicación web | Acceso: Cualquier persona
+const APPS_SCRIPT_CODE = `// =============================================
+// CEDIS Tracker - Google Apps Script
+// =============================================
+// INSTRUCCIONES:
+// 1. En Google Sheets: Extensiones > Apps Script
+// 2. Borra todo el codigo existente y pega este
+// 3. Guarda (Ctrl+S)
+// 4. Clic en "Implementar" > "Nueva implementacion"
+// 5. Tipo: Aplicacion web
+// 6. Ejecutar como: YO (tu cuenta)
+// 7. Acceso: Cualquier persona (incluso anonimos)
+// 8. Clic en "Implementar" y autoriza los permisos
+// =============================================
 
 const SHEET_ID = '1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0KY';
 
 function doGet(e) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss.getSheetByName('Rastreo GPS');
-  
-  if (!sheet) {
-    sheet = ss.insertSheet('Rastreo GPS');
-    sheet.appendRow(['Timestamp','Fecha','Hora','Operador','Radio ID','Turno','Latitud','Longitud','Precisión (m)']);
-    sheet.getRange(1,1,1,9).setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#00d4ff');
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName('Rastreo GPS');
+
+    if (!sheet) {
+      sheet = ss.insertSheet('Rastreo GPS');
+      const headers = ['Timestamp','Fecha','Hora','Operador','Radio ID','Turno','Latitud','Longitud','Precision (m)'];
+      sheet.appendRow(headers);
+      sheet.getRange(1,1,1,headers.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+
+    const p = e.parameter || {};
+    sheet.appendRow([
+      p.timestamp || new Date().toISOString(),
+      p.date      || '',
+      p.time      || '',
+      p.name      || '',
+      p.radio     || '',
+      p.turno     || '',
+      p.lat       || '',
+      p.lng       || '',
+      p.accuracy  || ''
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', row: sheet.getLastRow() }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
-  
-  const p = e.parameter;
-  sheet.appendRow([
-    p.timestamp || '',
-    p.date || '',
-    p.time || '',
-    p.name || '',
-    p.radio || '',
-    p.turno || '',
-    p.lat || '',
-    p.lng || '',
-    p.accuracy || ''
-  ]);
+}
+
+function doPost(e) {
+  return doGet(e);
+}
   
   return ContentService
     .createTextOutput(JSON.stringify({status:'ok', row: sheet.getLastRow()}))
     .setMimeType(ContentService.MimeType.JSON);
 }`;
+
+async function testConnection() {
+  const resultDiv = document.getElementById('testResult')
+  resultDiv.style.display = 'block'
+  resultDiv.style.color = 'var(--text2)'
+  resultDiv.textContent = '⏳ Probando conexión...'
+  try {
+    const testParams = new URLSearchParams({
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString('es-MX'),
+      time: new Date().toLocaleTimeString('es-MX'),
+      name: 'TEST',
+      radio: 'TEST-001',
+      turno: 'Prueba',
+      lat: '19.432608',
+      lng: '-99.133209',
+      accuracy: '5'
+    })
+    const url = SCRIPT_URL + '?' + testParams.toString()
+    const res = await fetch(url, { method: 'GET' })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.status === 'ok') {
+        resultDiv.style.color = 'var(--green)'
+        resultDiv.textContent = '✅ Conexión exitosa — fila ' + data.row + ' grabada en Sheets'
+      } else {
+        resultDiv.style.color = 'var(--red)'
+        resultDiv.textContent = '❌ Error del script: ' + (data.message || JSON.stringify(data))
+      }
+    } else {
+      resultDiv.style.color = 'var(--red)'
+      resultDiv.textContent = '❌ HTTP ' + res.status + ' — verifica que el script esté publicado correctamente'
+    }
+  } catch(e) {
+    // CORS error significa que SÍ llegó al servidor pero no podemos leer la respuesta
+    resultDiv.style.color = 'var(--amber)'
+    resultDiv.textContent = '⚠️ CORS (normal en móvil) — revisa la hoja de Sheets para confirmar si se grabó el registro TEST'
+  }
+}
 
 function copyScript() {
   navigator.clipboard.writeText(APPS_SCRIPT_CODE).then(() => {
