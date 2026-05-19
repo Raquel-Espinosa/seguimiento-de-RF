@@ -447,7 +447,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="config-card">
       <div class="config-title">Integración Google Sheets</div>
       <div class="info-box">
-        <strong>ID de hoja:</strong> 1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0K<br><br>
+        <strong>ID de hoja:</strong> 1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0KY<br><br>
         Para activar el envío automático necesitas crear un <strong>Apps Script</strong> en Google Sheets. Copia el código a continuación y pégalo en <strong>Extensiones → Apps Script</strong>.
       </div>
       <button class="copy-btn" onclick="copyScript()">📋 Copiar código del Apps Script</button>
@@ -492,7 +492,7 @@ let state = {
 }
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzh22fmIr1fnWf4CLunfXaNBomu8rHxpNkPCc1VmP0YC1mTT7a_K91erF7YP5zIIPi9QQ/exec'
-const SHEET_ID = '1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0K'
+const SHEET_ID = '1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0KY'
 
 // ═══════════════════════════════════════
 //  LOCK SCREEN
@@ -949,7 +949,7 @@ const APPS_SCRIPT_CODE = `// Google Apps Script para CEDIS Tracker
 // Pegar en: Extensiones → Apps Script → Guardar → Implementar → Nueva implementación
 // Tipo: Aplicación web | Acceso: Cualquier persona
 
-const SHEET_ID = '1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0K';
+const SHEET_ID = '1C2DENg_quXFVVprFnQtRywnSIo8DDIeQEMzKOIcI0KY';
 
 function doGet(e) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
